@@ -1,0 +1,95 @@
+"""
+ViewSets are the Express router + controller collapsed into one class.
+A ModelViewSet gives every CRUD route for free:
+
+    GET    /api/<resource>/        list
+    POST   /api/<resource>/        create
+    GET    /api/<resource>/{id}/   retrieve
+    PUT    /api/<resource>/{id}/   update
+    PATCH  /api/<resource>/{id}/   partial update
+    DELETE /api/<resource>/{id}/   destroy
+"""
+
+from django.utils import timezone
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from .models import EmployeeInfo, PolicyCategory, PolicyOption, Rule, RuleCondition
+from .serializers import (
+    EmployeeInfoSerializer,
+    PolicyCategorySerializer,
+    PolicyOptionSerializer,
+    RuleConditionSerializer,
+    RuleSerializer,
+)
+
+
+class EmployeeInfoViewSet(viewsets.ModelViewSet):
+    """
+    GET  /api/employees/   list employees, optional ?country=US
+    POST /api/employees/   create an employee
+    """
+
+    queryset = EmployeeInfo.objects.all()
+    serializer_class = EmployeeInfoSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        country = self.request.query_params.get("country")
+        if country:
+            qs = qs.filter(country__iexact=country)
+        return qs
+
+
+class PolicyCategoryViewSet(viewsets.ModelViewSet):
+    queryset = PolicyCategory.objects.all()
+    serializer_class = PolicyCategorySerializer
+
+
+class PolicyOptionViewSet(viewsets.ModelViewSet):
+    # select_related avoids the N+1 the `category_type` field would otherwise cause.
+    queryset = PolicyOption.objects.select_related("category").all()
+    serializer_class = PolicyOptionSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        category_type = self.request.query_params.get("category_type")
+        if category_type:
+            qs = qs.filter(category__type=category_type.upper())
+        return qs
+
+
+class RuleViewSet(viewsets.ModelViewSet):
+    """
+    GET  /api/rules/           list rules with their conditions, ?active=true
+    POST /api/rules/           create a rule (conditions can be nested inline)
+    GET  /api/rules/active/    only rules in effect right now
+    """
+
+    queryset = Rule.objects.select_related("outcome").prefetch_related("conditions")
+    serializer_class = RuleSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.request.query_params.get("active") == "true":
+            qs = self._active(qs)
+        return qs
+
+    @staticmethod
+    def _active(qs):
+        now = timezone.now()
+        return qs.filter(valid_from__lte=now).filter(valid_to__isnull=True) | qs.filter(
+            valid_from__lte=now, valid_to__gt=now
+        )
+
+    @action(detail=False, methods=["get"])
+    def active(self, request):
+        """A custom route, mounted by the router at /api/rules/active/."""
+        serializer = self.get_serializer(self._active(self.queryset), many=True)
+        return Response(serializer.data)
+
+
+class RuleConditionViewSet(viewsets.ModelViewSet):
+    queryset = RuleCondition.objects.all()
+    serializer_class = RuleConditionSerializer
