@@ -166,3 +166,108 @@ class RuleCondition(UUIDModel):
 
     def __str__(self):
         return f"{self.employee_attribute} {self.operator} {self.value}"
+
+
+class AttributeDataType(models.TextChoices):
+    TEXT = "text", "Text"
+    NUMBER = "number", "Number"
+    DATE = "date", "Date"
+    BOOL = "bool", "Bool"
+
+
+class AttributeSource(models.TextChoices):
+    """Where the fact comes from: stored on the employee, or derived at runtime."""
+
+    ATTRIBUTE_TABLE = "attribute_table", "Attribute table"
+    COMPUTED = "computed", "Computed"
+
+
+class Attribute(models.Model):
+    """
+    Master list of the facts a rule can test: 'location', 'tenure_years',
+    'gender'. Natural text PK -- `RuleCondition.employee_attribute` and the UI
+    both refer to attributes by key.
+    """
+
+    key = models.CharField(max_length=128, primary_key=True)
+    label = models.CharField(max_length=255, help_text="Display name for the UI.")
+    data_type = models.CharField(max_length=16, choices=AttributeDataType.choices)
+    source = models.CharField(max_length=32, choices=AttributeSource.choices)
+    enumerated = models.BooleanField(
+        default=False, help_text="True when the UI should offer a fixed value list."
+    )
+    compute_key = models.CharField(
+        max_length=128,
+        blank=True,
+        help_text="Function name resolving the value when source=computed.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["key"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(data_type__in=AttributeDataType.values),
+                name="attribute_data_type_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(source__in=AttributeSource.values),
+                name="attribute_source_valid",
+            ),
+        ]
+
+    def __str__(self):
+        return self.label
+
+
+class AttributeValue(UUIDModel):
+    """One allowed value of an enumerated attribute, e.g. location -> 'IN'."""
+
+    attribute = models.ForeignKey(
+        Attribute, on_delete=models.CASCADE, related_name="values", db_column="attribute_key"
+    )
+    value = models.CharField(max_length=255, help_text="What the engine compares on.")
+    label = models.CharField(max_length=255, blank=True)
+    active = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ["attribute_id", "sort_order", "value"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["attribute", "value"], name="attributevalue_unique_per_attribute"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.attribute_id}={self.value}"
+
+
+class EmployeeAttribute(UUIDModel):
+    """
+    An employee's value for one attribute. Stored facts only -- computed
+    attributes (tenure_years) are derived from EmployeeInfo at evaluation time
+    and never written here.
+    """
+
+    employee = models.ForeignKey(
+        EmployeeInfo, on_delete=models.CASCADE, related_name="attributes"
+    )
+    attribute = models.ForeignKey(
+        Attribute, on_delete=models.PROTECT, related_name="employee_values",
+        db_column="attribute_key",
+    )
+    value = models.CharField(max_length=255)
+
+    class Meta:
+        ordering = ["employee_id", "attribute_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["employee", "attribute"],
+                name="employeeattribute_unique_per_employee",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.employee_id} {self.attribute_id}={self.value}"

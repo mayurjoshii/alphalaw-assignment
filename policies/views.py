@@ -15,8 +15,20 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import EmployeeInfo, PolicyCategory, PolicyOption, Rule, RuleCondition
+from .models import (
+    Attribute,
+    AttributeValue,
+    EmployeeAttribute,
+    EmployeeInfo,
+    PolicyCategory,
+    PolicyOption,
+    Rule,
+    RuleCondition,
+)
 from .serializers import (
+    AttributeSerializer,
+    AttributeValueSerializer,
+    EmployeeAttributeSerializer,
     EmployeeInfoSerializer,
     PolicyCategorySerializer,
     PolicyOptionSerializer,
@@ -93,3 +105,55 @@ class RuleViewSet(viewsets.ModelViewSet):
 class RuleConditionViewSet(viewsets.ModelViewSet):
     queryset = RuleCondition.objects.all()
     serializer_class = RuleConditionSerializer
+
+
+class AttributeViewSet(viewsets.ModelViewSet):
+    """
+    GET /api/attributes/  the form schema: every attribute with its allowed
+                          values inlined, so the UI renders inputs in one call.
+                          ?source=attribute_table drops computed attributes.
+    """
+
+    queryset = Attribute.objects.prefetch_related("values").all()
+    serializer_class = AttributeSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        source = self.request.query_params.get("source")
+        if source:
+            qs = qs.filter(source=source)
+        return qs
+
+
+class AttributeValueViewSet(viewsets.ModelViewSet):
+    """GET /api/attribute-values/?attribute=location  options for one input."""
+
+    queryset = AttributeValue.objects.all()
+    serializer_class = AttributeValueSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        attribute = self.request.query_params.get("attribute")
+        if attribute:
+            qs = qs.filter(attribute_id=attribute)
+        if self.request.query_params.get("active") == "true":
+            qs = qs.filter(active=True)
+        return qs
+
+
+class EmployeeAttributeViewSet(viewsets.ModelViewSet):
+    """
+    The submitted form, one row per input:
+        GET  /api/employee-attributes/?employee=<id>
+        POST /api/employee-attributes/   {employee, attribute, value}
+    """
+
+    queryset = EmployeeAttribute.objects.select_related("attribute").all()
+    serializer_class = EmployeeAttributeSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        employee = self.request.query_params.get("employee")
+        if employee:
+            qs = qs.filter(employee_id=employee)
+        return qs

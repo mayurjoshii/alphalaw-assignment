@@ -7,6 +7,10 @@ from django.db import transaction
 from rest_framework import serializers
 
 from .models import (
+    Attribute,
+    AttributeSource,
+    AttributeValue,
+    EmployeeAttribute,
     EmployeeInfo,
     PolicyCategory,
     PolicyOption,
@@ -116,3 +120,92 @@ class RuleSerializer(serializers.ModelSerializer):
         for condition in conditions:
             RuleCondition.objects.create(rule=rule, **condition)
         return rule
+
+
+class AttributeValueSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AttributeValue
+        fields = ["id", "attribute", "value", "label", "active", "sort_order"]
+        read_only_fields = ["id"]
+
+
+class NestedAttributeValueSerializer(AttributeValueSerializer):
+    """Same shape, minus `attribute` -- it is the parent in this context."""
+
+    class Meta(AttributeValueSerializer.Meta):
+        fields = [f for f in AttributeValueSerializer.Meta.fields if f != "attribute"]
+
+
+class AttributeSerializer(serializers.ModelSerializer):
+    """
+    The form schema for one input: what to label it, which widget to render
+    (`data_type`), and -- when `enumerated` -- the options to offer.
+    """
+
+    values = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Attribute
+        fields = [
+            "key",
+            "label",
+            "data_type",
+            "source",
+            "enumerated",
+            "compute_key",
+            "values",
+        ]
+
+    def get_values(self, obj):
+        active = [v for v in obj.values.all() if v.active]
+        return NestedAttributeValueSerializer(active, many=True).data
+
+    def validate(self, attrs):
+        source = attrs.get("source", getattr(self.instance, "source", None))
+        compute_key = attrs.get("compute_key", getattr(self.instance, "compute_key", ""))
+        if source == AttributeSource.COMPUTED and not compute_key:
+            raise serializers.ValidationError(
+                {"compute_key": "A computed attribute needs a compute_key."}
+            )
+        if source == AttributeSource.ATTRIBUTE_TABLE and compute_key:
+            raise serializers.ValidationError(
+                {"compute_key": "Only computed attributes carry a compute_key."}
+            )
+        return attrs
+
+
+class EmployeeAttributeSerializer(serializers.ModelSerializer):
+    label = serializers.CharField(source="attribute.label", read_only=True)
+
+    class Meta:
+        model = EmployeeAttribute
+        fields = [
+            "id",
+            "employee",
+            "attribute",
+            "label",
+            "value",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        """Reject values a stored attribute cannot hold -- the form's guard rail."""
+        attribute = attrs.get("attribute", getattr(self.instance, "attribute", None))
+        value = attrs.get("value", getattr(self.instance, "value", None))
+        if attribute is None or value is None:
+            return attrs
+        if attribute.source == AttributeSource.COMPUTED:
+            raise serializers.ValidationError(
+                {"attribute": f"'{attribute.key}' is computed at runtime, not stored."}
+            )
+        if attribute.enumerated:
+            allowed = list(
+                attribute.values.filter(active=True).values_list("value", flat=True)
+            )
+            if value not in allowed:
+                raise serializers.ValidationError(
+                    {"value": f"Not an allowed value for '{attribute.key}': {allowed}"}
+                )
+        return attrs
