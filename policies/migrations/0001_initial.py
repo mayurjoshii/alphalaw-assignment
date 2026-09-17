@@ -23,7 +23,6 @@ class Migration(migrations.Migration):
                 ('gender', models.CharField(blank=True, max_length=64)),
                 ('location', models.CharField(blank=True, max_length=128)),
                 ('country', models.CharField(blank=True, help_text='ISO code, e.g. US / IN', max_length=2)),
-                ('joining_date', models.DateField(blank=True, null=True)),
             ],
             options={
                 'verbose_name_plural': 'employee info',

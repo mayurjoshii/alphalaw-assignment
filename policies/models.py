@@ -60,13 +60,12 @@ class UUIDModel(models.Model):
 class EmployeeInfo(UUIDModel):
     """
     Identity only. Every other fact about an employee (gender, location,
-    department, ...) lives in `EmployeeAttribute`, keyed by `Attribute`, so the
-    UI and the rule engine read one place. `joining_date` is the exception: it
-    stays a typed column because tenure is derived from it at evaluation time.
+    department, joining_date, ...) lives in `EmployeeAttribute`, keyed by
+    `Attribute`, so the UI and the rule engine read one place. tenure_years is
+    derived from the `joining_date` attribute value at evaluation time.
     """
 
     name = models.CharField(max_length=255)
-    joining_date = models.DateField(null=True, blank=True)
 
     class Meta:
         verbose_name_plural = "employee info"
@@ -251,8 +250,8 @@ class AttributeValue(UUIDModel):
 class EmployeeAttribute(UUIDModel):
     """
     An employee's value for one attribute. Stored facts only -- computed
-    attributes (tenure_years) are derived from EmployeeInfo at evaluation time
-    and never written here.
+    attributes (tenure_years) are derived from the `joining_date` attribute
+    value at evaluation time and never written here.
     """
 
     employee = models.ForeignKey(

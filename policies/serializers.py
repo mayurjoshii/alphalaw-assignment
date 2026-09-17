@@ -34,7 +34,6 @@ class EmployeeInfoSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
-            "joining_date",
             "attributes",
             "created_at",
             "updated_at",
