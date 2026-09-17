@@ -21,7 +21,6 @@ import type {
 /** The facts a rule can test: stored attributes plus derived ones. */
 export interface EmployeeFacts {
   name: string;
-  joining_date: string | null;
   attributes: Record<string, string>;
 }
 
@@ -58,13 +57,13 @@ export function calculateTenureYears(joiningDate: string, asOf: Date = new Date(
 
 /**
  * Resolve one attribute key against an employee. `tenure_years` is computed
- * from joining_date; everything else is a stored attribute row.
+ * from the `joining_date` attribute; everything else is a stored attribute row.
  */
 function factValue(facts: EmployeeFacts, key: string): string | number | null {
   if (key === 'tenure_years') {
-    return facts.joining_date ? calculateTenureYears(facts.joining_date) : null;
+    const joiningDate = facts.attributes.joining_date;
+    return joiningDate ? calculateTenureYears(joiningDate) : null;
   }
-  if (key === 'joining_date') return facts.joining_date;
   return facts.attributes[key] ?? null;
 }
 

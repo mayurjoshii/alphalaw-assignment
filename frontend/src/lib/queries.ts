@@ -70,21 +70,21 @@ export function useActiveRules() {
 
 export interface EmployeeDraft {
   name: string;
-  joining_date: string | null;
   attributes: Record<string, string>;
 }
 
 /**
  * Creating an employee is two round trips by design: `/employees/` owns
- * identity, `/employee-attributes/` owns every other fact and validates each
- * value against its attribute's option list.
+ * identity (just `name` -- joining_date lives in employee_attributes like
+ * every other fact), `/employee-attributes/` owns everything else and
+ * validates each value against its attribute's option list.
  */
 export function useSaveEmployee() {
   const client = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ id, draft }: { id?: string; draft: EmployeeDraft }) => {
-      const identity = { name: draft.name, joining_date: draft.joining_date || null };
+      const identity = { name: draft.name };
 
       const employee = id
         ? await api.patch<Employee>(`/employees/${id}/`, identity)

@@ -8,6 +8,7 @@ export type PolicyCategoryName =
   | 'DEPARTMENT'
   | 'TENURE'
   | 'LEAVE'
+  | 'LEAVE_ONETIME'
   | 'LOCATION'
   | 'COMPLIANCE'
   | 'SHIFT'
@@ -19,6 +20,7 @@ export const POLICY_CATEGORY_NAMES: PolicyCategoryName[] = [
   'DEPARTMENT',
   'TENURE',
   'LEAVE',
+  'LEAVE_ONETIME',
   'LOCATION',
   'COMPLIANCE',
   'SHIFT',
@@ -71,8 +73,7 @@ export interface Attribute {
 export interface Employee {
   id: string;
   name: string;
-  joining_date: string | null;
-  /** Flat `{attribute_key: value}` map, built by EmployeeInfoSerializer. */
+  /** Flat `{attribute_key: value}` map, built by EmployeeInfoSerializer -- includes `joining_date`. */
   attributes: Record<string, string>;
   created_at: string;
   updated_at: string;
