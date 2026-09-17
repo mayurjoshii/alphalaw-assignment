@@ -4,6 +4,7 @@ in one object: they validate incoming POST bodies and render outgoing rows.
 """
 
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import (
@@ -41,7 +42,14 @@ class EmployeeInfoSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def get_attributes(self, obj):
-        return {row.attribute_id: row.value for row in EmployeeAttribute.open_for(obj.id)}
+        # The viewset prefetches only open rows into `attributes`, so reading the
+        # relation here stays inside that prefetch instead of firing a query per
+        # employee. Falls back to a direct query when there is no prefetch.
+        if "attributes" in getattr(obj, "_prefetched_objects_cache", {}):
+            rows = obj.attributes.all()
+        else:
+            rows = EmployeeAttribute.open_for(obj.id)
+        return {row.attribute_id: row.value for row in rows}
 
 
 class PolicyCategorySerializer(serializers.ModelSerializer):
@@ -132,18 +140,23 @@ class RuleSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def update(self, instance, validated_data):
         """Supersede a rule by closing the old row and creating a new one."""
-        from django.utils import timezone
         conditions = validated_data.pop("conditions", None)
+        if instance.valid_to is not None:
+            raise serializers.ValidationError(
+                "This rule is already superseded; edit the currently-open rule instead."
+            )
 
-        # Close the current rule
-        instance.valid_to = timezone.now()
+        # One timestamp for both sides so the old row's close and the new row's
+        # open meet exactly -- no gap where neither row is in effect.
+        now = timezone.now()
+        instance.valid_to = now
         instance.save(update_fields=["valid_to"])
 
         # Create a new rule with the updated fields, keeping outcome if not changed
         new_rule_data = {
             "outcome": validated_data.get("outcome", instance.outcome),
             "scope": validated_data.get("scope", instance.scope),
-            "valid_from": timezone.now(),
+            "valid_from": now,
             "valid_to": None,
         }
         new_rule = Rule.objects.create(**new_rule_data)
@@ -258,10 +271,15 @@ class EmployeeAttributeSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def update(self, instance, validated_data):
         """Supersede an attribute row by closing the old one and creating a new one."""
-        from django.utils import timezone
+        if instance.valid_to is not None:
+            raise serializers.ValidationError(
+                "This attribute row is already superseded; edit the currently-open row "
+                "instead."
+            )
 
-        # Close the current row
-        instance.valid_to = timezone.now()
+        # One timestamp for both sides -- see RuleSerializer.update.
+        now = timezone.now()
+        instance.valid_to = now
         instance.save(update_fields=["valid_to"])
 
         # Create a new row with the updated fields, keeping unchanged fields
@@ -269,7 +287,7 @@ class EmployeeAttributeSerializer(serializers.ModelSerializer):
             "employee": validated_data.get("employee", instance.employee),
             "attribute": validated_data.get("attribute", instance.attribute),
             "value": validated_data.get("value", instance.value),
-            "valid_from": timezone.now(),
+            "valid_from": now,
             "valid_to": None,
         }
         new_attribute = EmployeeAttribute.objects.create(**new_data)

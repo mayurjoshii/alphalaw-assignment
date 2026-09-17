@@ -10,6 +10,7 @@ A ModelViewSet gives every CRUD route for free:
     DELETE /api/<resource>/{id}/   destroy
 """
 
+from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -44,7 +45,11 @@ class EmployeeInfoViewSet(viewsets.ModelViewSet):
     POST /api/employees/               create an employee
     """
 
-    queryset = EmployeeInfo.objects.prefetch_related("attributes").all()
+    # Only open rows are prefetched -- superseded history never reaches the
+    # serialized current-state view.
+    queryset = EmployeeInfo.objects.prefetch_related(
+        Prefetch("attributes", queryset=EmployeeAttribute.open_for())
+    ).all()
     serializer_class = EmployeeInfoSerializer
 
     def get_queryset(self):
@@ -54,8 +59,14 @@ class EmployeeInfoViewSet(viewsets.ModelViewSet):
         for key, value in self.request.query_params.items():
             if key in keys:
                 # One .filter() per key so several keys AND together rather
-                # than collapsing onto a single attribute row.
-                qs = qs.filter(attributes__attribute_id=key, attributes__value=value)
+                # than collapsing onto a single attribute row. Superseded rows
+                # are excluded: someone who moved must not still match their
+                # old location.
+                qs = qs.filter(
+                    attributes__attribute_id=key,
+                    attributes__value=value,
+                    attributes__valid_to__isnull=True,
+                )
         return qs
 
 
