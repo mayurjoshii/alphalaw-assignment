@@ -39,18 +39,23 @@ from .serializers import (
 
 class EmployeeInfoViewSet(viewsets.ModelViewSet):
     """
-    GET  /api/employees/   list employees, optional ?country=US
-    POST /api/employees/   create an employee
+    GET  /api/employees/               list employees with their attributes
+    GET  /api/employees/?location=USA  filter by any attribute key
+    POST /api/employees/               create an employee
     """
 
-    queryset = EmployeeInfo.objects.all()
+    queryset = EmployeeInfo.objects.prefetch_related("attributes").all()
     serializer_class = EmployeeInfoSerializer
 
     def get_queryset(self):
+        """Any query param naming an attribute filters on that attribute's value."""
         qs = super().get_queryset()
-        country = self.request.query_params.get("country")
-        if country:
-            qs = qs.filter(country__iexact=country)
+        keys = set(Attribute.objects.values_list("key", flat=True))
+        for key, value in self.request.query_params.items():
+            if key in keys:
+                # One .filter() per key so several keys AND together rather
+                # than collapsing onto a single attribute row.
+                qs = qs.filter(attributes__attribute_id=key, attributes__value=value)
         return qs
 
 

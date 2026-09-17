@@ -58,10 +58,14 @@ class UUIDModel(models.Model):
 
 
 class EmployeeInfo(UUIDModel):
+    """
+    Identity only. Every other fact about an employee (gender, location,
+    department, ...) lives in `EmployeeAttribute`, keyed by `Attribute`, so the
+    UI and the rule engine read one place. `joining_date` is the exception: it
+    stays a typed column because tenure is derived from it at evaluation time.
+    """
+
     name = models.CharField(max_length=255)
-    gender = models.CharField(max_length=64, blank=True)
-    location = models.CharField(max_length=128, blank=True)
-    country = models.CharField(max_length=2, blank=True, help_text="ISO code, e.g. US / IN")
     joining_date = models.DateField(null=True, blank=True)
 
     class Meta:

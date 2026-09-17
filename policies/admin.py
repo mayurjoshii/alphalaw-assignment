@@ -23,8 +23,8 @@ class EmployeeAttributeInline(admin.TabularInline):
 
 @admin.register(EmployeeInfo)
 class EmployeeInfoAdmin(admin.ModelAdmin):
-    list_display = ("name", "country", "location", "joining_date")
-    search_fields = ("name", "country")
+    list_display = ("name", "joining_date")
+    search_fields = ("name",)
     inlines = [EmployeeAttributeInline]
 
 

@@ -21,19 +21,28 @@ from .models import (
 
 
 class EmployeeInfoSerializer(serializers.ModelSerializer):
+    """
+    Identity plus a flat `{attribute_key: value}` map, so one GET gives the UI
+    everything it needs to fill the form. Writes go to
+    /api/employee-attributes/, which validates each value against its attribute.
+    """
+
+    attributes = serializers.SerializerMethodField()
+
     class Meta:
         model = EmployeeInfo
         fields = [
             "id",
             "name",
-            "gender",
-            "location",
-            "country",
             "joining_date",
+            "attributes",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_attributes(self, obj):
+        return {row.attribute_id: row.value for row in obj.attributes.all()}
 
 
 class PolicyCategorySerializer(serializers.ModelSerializer):
