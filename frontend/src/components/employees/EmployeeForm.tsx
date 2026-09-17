@@ -10,7 +10,6 @@ import type { Attribute } from '@/types/domain';
 
 export interface EmployeeDraftState {
   name: string;
-  joining_date: string;
   attributes: Record<string, string>;
 }
 
@@ -25,17 +24,24 @@ export function EmployeeForm({
   attributes: Attribute[];
   errors: Record<string, string>;
   onChange: (next: EmployeeDraftState) => void;
-  /** Re-runs policy resolution. Called on blur for typed inputs, on change
-   *  for pickers -- a selection is already a finished decision. */
-  onCommit: () => void;
+  /** Re-runs policy resolution against the given draft. Called on blur for
+   *  typed inputs, on click/change for pickers -- a selection is already a
+   *  finished decision. Takes the next draft explicitly rather than relying
+   *  on the caller's `draft` closure, which is stale when a picker fires
+   *  onChange and onCommit synchronously in the same handler. */
+  onCommit: (next: EmployeeDraftState) => void;
 }) {
   const setField = (patch: Partial<EmployeeDraftState>) => onChange({ ...draft, ...patch });
 
-  const setAttribute = (key: string, value: string) =>
-    onChange({ ...draft, attributes: { ...draft.attributes, [key]: value } });
+  const setAttribute = (key: string, value: string, commit = false) => {
+    const next = { ...draft, attributes: { ...draft.attributes, [key]: value } };
+    onChange(next);
+    if (commit) onCommit(next);
+  };
 
   // Computed attributes (tenure_years) are derived at evaluation time and
-  // must never be collected from the user.
+  // must never be collected from the user -- everything else the backend
+  // marks as attribute_table renders here, joining_date included.
   const editable = attributes.filter((attribute) => attribute.source === 'attribute_table');
 
   return (
@@ -48,20 +54,7 @@ export function EmployeeForm({
             value={draft.name}
             placeholder="e.g. Priya Singh"
             onChange={(event) => setField({ name: event.target.value })}
-            onBlur={onCommit}
-          />
-        </Field>
-
-        <Field
-          label="Joining date"
-          hint="tenure is derived from this"
-          error={errors.joining_date}
-        >
-          <Input
-            type="date"
-            value={draft.joining_date}
-            onChange={(event) => setField({ joining_date: event.target.value })}
-            onBlur={onCommit}
+            onBlur={() => onCommit(draft)}
           />
         </Field>
       </section>
@@ -83,11 +76,8 @@ export function EmployeeForm({
                 attribute={attribute}
                 value={draft.attributes[attribute.key] ?? ''}
                 error={errors[attribute.key]}
-                onChange={(value) => {
-                  setAttribute(attribute.key, value);
-                  if (attribute.enumerated) onCommit();
-                }}
-                onBlur={onCommit}
+                onChange={(value) => setAttribute(attribute.key, value, attribute.enumerated)}
+                onBlur={() => onCommit(draft)}
               />
             </motion.div>
           ))}

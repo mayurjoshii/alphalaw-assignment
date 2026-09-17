@@ -65,7 +65,6 @@ export function EmployeeDirectory() {
         resolved: resolveEmployeePolicies({
           facts: {
             name: employee.name,
-            joining_date: employee.joining_date,
             attributes: employee.attributes,
           },
           ...reference,
@@ -130,8 +129,8 @@ export function EmployeeDirectory() {
             <tbody>
               {rows.map(({ employee, resolved }, index) => {
                 const headline = resolved.find((row) => row.total !== null);
-                const tenure = employee.joining_date
-                  ? calculateTenureYears(employee.joining_date)
+                const tenure = employee.attributes.joining_date
+                  ? calculateTenureYears(employee.attributes.joining_date)
                   : null;
 
                 return (

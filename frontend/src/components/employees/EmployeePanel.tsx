@@ -15,13 +15,12 @@ import { useSaveEmployee } from '@/lib/queries';
 import { ApiError } from '@/lib/api';
 import type { Attribute, Employee, PolicyCategory, PolicyOption, Rule } from '@/types/domain';
 
-const EMPTY: EmployeeDraftState = { name: '', joining_date: '', attributes: {} };
+const EMPTY: EmployeeDraftState = { name: '', attributes: {} };
 
 function toDraft(employee: Employee | null): EmployeeDraftState {
   if (!employee) return EMPTY;
   return {
     name: employee.name,
-    joining_date: employee.joining_date ?? '',
     attributes: { ...employee.attributes },
   };
 }
@@ -50,7 +49,7 @@ export function EmployeePanel({
   const [draft, setDraft] = useState<EmployeeDraftState>(EMPTY);
   /**
    * `committed` is what the engine evaluates. Keeping it separate from
-   * `draft` is what implements the on-blur evaluation decided in
+   * `draft` is what implements the on-blur/on-click evaluation decided in
    * MJ-api-endpoints.md -- the table doesn't flicker on every keystroke.
    */
   const [committed, setCommitted] = useState<EmployeeDraftState>(EMPTY);
@@ -72,7 +71,6 @@ export function EmployeePanel({
       resolveEmployeePolicies({
         facts: {
           name: committed.name,
-          joining_date: committed.joining_date || null,
           attributes: committed.attributes,
         },
         categories,
@@ -97,7 +95,6 @@ export function EmployeePanel({
         id: employee?.id,
         draft: {
           name: draft.name.trim(),
-          joining_date: draft.joining_date || null,
           attributes: draft.attributes,
         },
       });
@@ -145,14 +142,14 @@ export function EmployeePanel({
             attributes={attributes}
             errors={errors}
             onChange={setDraft}
-            onCommit={() => setCommitted(draft)}
+            onCommit={setCommitted}
           />
         </section>
 
         <aside className="border-rule bg-paper/70 border-t px-6 py-6 lg:min-h-0 lg:overflow-y-auto lg:border-t-0 lg:border-l">
           <ResolvedPolicyTable
             resolved={resolved}
-            joiningDate={committed.joining_date || null}
+            joiningDate={committed.attributes.joining_date || null}
             stale={stale}
           />
         </aside>
