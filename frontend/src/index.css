@@ -1,0 +1,143 @@
+@import 'tailwindcss';
+
+/*
+  Aesthetic: "archival ledger". Warm bone paper, ink-black type, an oxblood
+  accent for the chrome, brass for anything additive/bonus, verdigris for a
+  resolved outcome. Data is monospaced because these are values a rule engine
+  computed, not prose. Committing to one dominant surface (paper) with two
+  sharp accents beats an evenly-spread palette.
+*/
+@theme {
+  --color-paper: #ece5d5;
+  --color-paper-raised: #f6f1e6;
+  --color-paper-high: #fffdf8;
+  --color-ink: #17130f;
+  --color-ink-soft: #4b4238;
+  --color-ink-faint: #8d8171;
+  --color-rule: #d5c9b0;
+  --color-rule-soft: #e3d9c5;
+  --color-oxblood: #8e2b24;
+  --color-oxblood-wash: #f3e2df;
+  --color-brass: #a07118;
+  --color-brass-wash: #f4eada;
+  --color-verdigris: #2c6657;
+  --color-verdigris-wash: #dfeae4;
+
+  --font-display: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+
+  --radius-sheet: 3px;
+
+  --ease-paper: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-rule-soft);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    font-family: var(--font-display);
+    color: var(--color-ink);
+    background-color: var(--color-paper);
+    /*
+      Three stacked layers make the surface feel like lit paper instead of a
+      flat fill: a warm corner glow, faint ledger rules, and a fibre grain.
+    */
+    background-image:
+      radial-gradient(
+        120ch 70ch at 12% -10%,
+        rgb(255 253 248 / 0.9) 0%,
+        rgb(255 253 248 / 0) 60%
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 31px,
+        rgb(23 19 15 / 0.028) 31px,
+        rgb(23 19 15 / 0.028) 32px
+      ),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: var(--color-oxblood);
+    color: var(--color-paper-high);
+  }
+
+  /* One quiet scrollbar treatment everywhere rather than per-pane overrides. */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-rule);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-ink-faint);
+    background-clip: content-box;
+  }
+}
+
+@layer components {
+  /*
+    The one label style used for every field caption, column head and section
+    marker -- small, spaced, monospace. Repeating it as a utility keeps the
+    "filed document" voice consistent across the three screens.
+  */
+  .stamp {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+
+  /*
+    A sheet of paper: the base surface for cards, panels and the drawer.
+    Flat by design -- the border and the raised fill carry the separation, so
+    no drop shadow.
+  */
+  .sheet {
+    background: var(--color-paper-raised);
+    border: 1px solid var(--color-rule);
+    border-radius: var(--radius-sheet);
+  }
+
+  .focus-ring:focus-visible {
+    outline: 2px solid var(--color-oxblood);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* Staggered page-load reveal. One orchestrated entrance, not scattered ones. */
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .animate-rise {
+    animation: rise 0.55s var(--ease-paper) both;
+  }
+}
