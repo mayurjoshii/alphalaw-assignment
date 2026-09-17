@@ -24,3 +24,10 @@ Dropped the `country` attribute and switched location's options to US/IN. Two at
 ## 2026-09-17 — joining_date moved from employee_info to employee_attributes
 
 Dropped the typed `joining_date` column; it's an EmployeeAttribute now like other facts. tenure_years derives from that attribute's value, not a column. Edited migration 0001 directly (solo dev, no team to desync). 
+## 2026-09-17 — POC frontend resolves policies client-side
+
+`frontend/src/lib/resolve.ts` ports functions.ts to the browser. Django has no resolution endpoint, and local eval is what lets an unsaved employee preview entitlements on blur.
+
+## 2026-09-17 — Resolution strategy is read off option meta
+
+Options carrying a number (meta.days) accumulate; the rest select one, CONDITIONAL over GLOBAL. Leave days stack, pay schedules cannot — so the category's data decides, not a hardcoded list.
