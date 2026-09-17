@@ -4,30 +4,30 @@
  * HR user checks before deciding what an employee should get.
  */
 
-import { useState } from 'react';
-import { motion } from 'motion/react';
-import { Accordion } from '@/components/ui/Accordion';
-import { Badge, Button } from '@/components/ui/primitives';
-import { CategoryComposer } from './CategoryComposer';
-import { describeCondition, optionLabel, strategyFor } from '@/lib/resolve';
+import { useState } from "react";
+import { motion } from "motion/react";
+import { Accordion } from "@/components/ui/Accordion";
+import { Badge, Button } from "@/components/ui/primitives";
+import { CategoryComposer } from "./CategoryComposer";
+import { describeCondition, optionLabel, strategyFor } from "@/lib/resolve";
 import {
   useActiveRules,
   useAttributes,
   usePolicyCategories,
   usePolicyOptions,
-} from '@/lib/queries';
+} from "@/lib/queries";
 
 export function PolicyStudio() {
   const categories = usePolicyCategories();
   const options = usePolicyOptions();
-  const rules = useActiveRules();
+  const activeRules = useActiveRules();
   const attributes = useAttributes();
 
   const [composerOpen, setComposerOpen] = useState(false);
 
   const allCategories = categories.data ?? [];
   const allOptions = options.data ?? [];
-  const allRules = rules.data ?? [];
+  const allActiveRules = activeRules.data ?? [];
   const allAttributes = attributes.data ?? [];
 
   return (
@@ -38,7 +38,8 @@ export function PolicyStudio() {
             Policy studio
           </h2>
           <p className="text-ink-soft mt-1.5 text-[13px]">
-            {allCategories.length} categories · {allRules.length} active rules
+            {allCategories.length} categories · {allActiveRules.length} active
+            rules
           </p>
         </div>
         <Button onClick={() => setComposerOpen(true)}>+ New category</Button>
@@ -55,7 +56,9 @@ export function PolicyStudio() {
       ) : (
         <div className="flex flex-col gap-2.5">
           {allCategories.map((category, index) => {
-            const categoryOptions = allOptions.filter((o) => o.category === category.id);
+            const categoryOptions = allOptions.filter(
+              (o) => o.category === category.id,
+            );
             const strategy = strategyFor(categoryOptions);
 
             return (
@@ -70,19 +73,25 @@ export function PolicyStudio() {
                 }}
               >
                 <Accordion
-                  defaultOpen={index === 0}
+                  defaultOpen={index < 3}
                   summary={
                     <span className="flex items-baseline gap-2.5">
-                      <span className="text-[15px]">{category.display_name}</span>
+                      <span className="text-[15px]">
+                        {category.display_name}
+                      </span>
                       <span className="text-ink-faint font-mono text-[10px] tracking-[0.1em] uppercase">
-                        {category.type.replace(/_/g, ' ').toLowerCase()}
+                        {category.type.replace(/_/g, " ").toLowerCase()}
                       </span>
                     </span>
                   }
                   meta={
                     <span className="flex shrink-0 items-center gap-2">
-                      <Badge tone={strategy === 'accumulate' ? 'verdigris' : 'neutral'}>
-                        {strategy === 'accumulate' ? 'stacks' : 'one applies'}
+                      <Badge
+                        tone={
+                          strategy === "accumulate" ? "verdigris" : "neutral"
+                        }
+                      >
+                        {strategy === "accumulate" ? "stacks" : "one applies"}
                       </Badge>
                       <Badge>{categoryOptions.length} opt</Badge>
                     </span>
@@ -95,34 +104,54 @@ export function PolicyStudio() {
                   ) : (
                     <ul className="flex flex-col gap-2">
                       {categoryOptions.map((option) => {
-                        const rule = allRules.find((r) => r.outcome === option.id);
+                        const rule = allActiveRules.find(
+                          (r) => r.outcome === option.id,
+                        );
+                        console.log("Rule:rule", rule);
+                        if (!rule) {
+                          return null;
+                        }
+
                         return (
                           <li
                             key={option.id}
                             className="border-rule-soft bg-paper-raised grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] items-start gap-4 rounded-[3px] border px-3 py-2.5"
                           >
-                            <span className="text-[13px]">{optionLabel(option)}</span>
+                            <span className="text-[13px]">
+                              {optionLabel(option)}
+                            </span>
 
                             <span className="flex flex-wrap items-center gap-1.5">
                               {!rule ? (
                                 <Badge tone="oxblood">no active rule</Badge>
-                              ) : rule.scope === 'GLOBAL' ? (
+                              ) : rule.scope === "GLOBAL" ? (
                                 <Badge tone="verdigris">everyone</Badge>
                               ) : rule.conditions.length === 0 ? (
                                 <Badge tone="oxblood">no conditions</Badge>
                               ) : (
-                                rule.conditions.map((condition, conditionIndex) => (
-                                  <span key={condition.id} className="flex items-center gap-1.5">
-                                    {conditionIndex > 0 && (
-                                      <span className="text-ink-faint font-mono text-[9px]">
-                                        {rule.conditions[conditionIndex - 1].combinator}
-                                      </span>
-                                    )}
-                                    <code className="border-rule bg-paper-high text-ink-soft rounded-[2px] border px-1.5 py-0.5 font-mono text-[10px]">
-                                      {describeCondition(condition, allAttributes)}
-                                    </code>
-                                  </span>
-                                ))
+                                rule.conditions.map(
+                                  (condition, conditionIndex) => (
+                                    <span
+                                      key={condition.id}
+                                      className="flex items-center gap-1.5"
+                                    >
+                                      {conditionIndex > 0 && (
+                                        <span className="text-ink-faint font-mono text-[9px]">
+                                          {
+                                            rule.conditions[conditionIndex - 1]
+                                              .combinator
+                                          }
+                                        </span>
+                                      )}
+                                      <code className="border-rule bg-paper-high text-ink-soft rounded-[2px] border px-1.5 py-0.5 font-mono text-[10px]">
+                                        {describeCondition(
+                                          condition,
+                                          allAttributes,
+                                        )}
+                                      </code>
+                                    </span>
+                                  ),
+                                )
                               )}
                             </span>
                           </li>

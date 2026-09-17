@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { EmployeeDirectory } from '@/components/employees/EmployeeDirectory';
 import { PolicyStudio } from '@/components/policies/PolicyStudio';
+import { AlphaLawLogo } from '@/components/ui/AlphaLawLogo';
 import { cn } from '@/lib/cn';
 
 type View = 'directory' | 'studio';
@@ -19,13 +20,8 @@ export default function App() {
     <div className="min-h-dvh">
       <header className="border-rule bg-paper/80 sticky top-0 z-30 border-b backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center gap-8 px-6 py-3.5">
-          <div className="flex items-baseline gap-2.5">
-            <span className="bg-oxblood text-paper-high flex size-6 items-center justify-center rounded-[2px] font-mono text-[11px] font-semibold">
-              α
-            </span>
-            <span className="font-display text-[15px] font-semibold tracking-[-0.01em]">
-              AlphaLaw
-            </span>
+          <div className="flex items-center gap-2.5">
+            <AlphaLawLogo className="text-ink h-[22px] w-auto" />
             <span className="stamp">Policy desk</span>
           </div>
 
