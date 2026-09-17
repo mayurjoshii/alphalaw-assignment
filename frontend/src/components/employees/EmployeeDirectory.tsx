@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Badge, Button, Input } from '@/components/ui/primitives';
 import { EmployeePanel } from './EmployeePanel';
+import { EmployeeTimeline } from './EmployeeTimeline';
 import { resolveEmployeePolicies, calculateTenureYears } from '@/lib/resolve';
 import {
   useActiveRules,
@@ -27,6 +28,7 @@ export function EmployeeDirectory() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Employee | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [historyEmployeeId, setHistoryEmployeeId] = useState<string | null>(null);
 
   /**
    * One stable object for the four reference datasets. Memoised because it is
@@ -194,7 +196,14 @@ export function EmployeeDirectory() {
         open={panelOpen}
         employee={selected}
         onClose={() => setPanelOpen(false)}
+        onViewHistory={selected ? () => setHistoryEmployeeId(selected.id) : undefined}
         {...reference}
+      />
+
+      <EmployeeTimeline
+        open={historyEmployeeId != null}
+        employeeId={historyEmployeeId}
+        onClose={() => setHistoryEmployeeId(null)}
       />
     </div>
   );

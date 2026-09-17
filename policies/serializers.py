@@ -180,6 +180,22 @@ class RuleSerializer(serializers.ModelSerializer):
         return new_rule
 
 
+class RuleTimelineSerializer(RuleSerializer):
+    """Read-only `RuleSerializer` plus a derived active/superseded status,
+    for the policy-option and employee timeline views."""
+
+    status = serializers.SerializerMethodField()
+    category_type = serializers.CharField(
+        source="outcome.category.type", read_only=True
+    )
+
+    class Meta(RuleSerializer.Meta):
+        fields = RuleSerializer.Meta.fields + ["status", "category_type"]
+
+    def get_status(self, obj):
+        return "active" if obj.valid_to is None else "superseded"
+
+
 class AttributeValueSerializer(serializers.ModelSerializer):
     class Meta:
         model = AttributeValue

@@ -9,9 +9,11 @@ import { api } from './api';
 import type {
   Attribute,
   Employee,
+  EmployeeTimeline,
   PolicyCategory,
   PolicyCategoryName,
   PolicyOption,
+  PolicyOptionTimeline,
   Rule,
   RuleScope,
 } from '@/types/domain';
@@ -63,6 +65,24 @@ export function useActiveRules() {
   return useQuery({
     queryKey: [...keys.rules, 'active'],
     queryFn: () => api.list<Rule>('/rules/active/'),
+  });
+}
+
+/** Every rule ever written against one option, newest first -- its history page. */
+export function usePolicyOptionTimeline(optionId: string | null) {
+  return useQuery({
+    queryKey: [...keys.options, optionId, 'timeline'],
+    queryFn: () => api.get<PolicyOptionTimeline>(`/policy-options/${optionId}/timeline/`),
+    enabled: optionId != null,
+  });
+}
+
+/** An employee's attribute history plus the rules each change could affect. */
+export function useEmployeeTimeline(employeeId: string | null) {
+  return useQuery({
+    queryKey: [...keys.employees, employeeId, 'timeline'],
+    queryFn: () => api.get<EmployeeTimeline>(`/employees/${employeeId}/timeline/`),
+    enabled: employeeId != null,
   });
 }
 

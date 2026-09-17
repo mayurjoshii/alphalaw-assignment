@@ -53,10 +53,23 @@ function errorMessage(detail: unknown, status: number): string {
   return `Request failed (${status})`;
 }
 
-/** Paginated endpoints return an envelope; everything downstream wants rows. */
+/**
+ * Paginated endpoints return an envelope; everything downstream wants rows.
+ * Follows `next` so a collection past one page (PAGE_SIZE = 25) doesn't
+ * silently truncate -- policy options alone already exceed that.
+ */
 async function list<T>(path: string): Promise<T[]> {
   const body = await request<Page<T> | T[]>(path);
-  return Array.isArray(body) ? body : body.results;
+  if (Array.isArray(body)) return body;
+
+  const rows = [...body.results];
+  let next = body.next;
+  while (next) {
+    const page = await request<Page<T>>(next.slice(next.indexOf(BASE) + BASE.length));
+    rows.push(...page.results);
+    next = page.next;
+  }
+  return rows;
 }
 
 function query(params: Record<string, string | undefined>): string {

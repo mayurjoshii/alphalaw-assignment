@@ -138,3 +138,34 @@ export function testableAttributes(stored: Attribute[]): Attribute[] {
   const keys = new Set(stored.map((attribute) => attribute.key));
   return [...stored, ...COMPUTED_ATTRIBUTES.filter((a) => !keys.has(a.key))];
 }
+
+// ---------------------------------------------------------------- timeline
+
+/** `Rule` plus what `RuleTimelineSerializer` derives server-side. */
+export interface RuleTimelineEntry extends Rule {
+  status: 'active' | 'superseded';
+  category_type: PolicyCategoryName;
+}
+
+/** Response shape of `GET /api/policy-options/:id/timeline/`. */
+export interface PolicyOptionTimeline {
+  policyOption: PolicyOption;
+  rules: RuleTimelineEntry[];
+}
+
+/** One row of `GET /api/employees/:id/timeline/`. */
+export interface EmployeeAttributeTimelineEvent {
+  id: string;
+  attribute: Attribute;
+  value: string;
+  valid_from: string;
+  valid_to: string | null;
+  status: 'active' | 'superseded';
+  rules_referencing_attribute: RuleTimelineEntry[];
+}
+
+/** Response shape of `GET /api/employees/:id/timeline/`. */
+export interface EmployeeTimeline {
+  employee: Employee;
+  attributeTimeline: EmployeeAttributeTimelineEvent[];
+}

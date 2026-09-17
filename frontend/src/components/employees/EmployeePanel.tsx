@@ -33,6 +33,7 @@ export function EmployeePanel({
   options,
   rules,
   onClose,
+  onViewHistory,
 }: {
   open: boolean;
   /** null = create mode. */
@@ -42,6 +43,8 @@ export function EmployeePanel({
   options: PolicyOption[];
   rules: Rule[];
   onClose: () => void;
+  /** Opens the attribute-history drawer; omitted while creating (no id yet). */
+  onViewHistory?: () => void;
 }) {
   const toast = useToast();
   const save = useSaveEmployee();
@@ -118,6 +121,11 @@ export function EmployeePanel({
         actions={
           <>
             {dirty && <Badge tone="brass">unsaved</Badge>}
+            {employee && onViewHistory && (
+              <Button tone="ghost" onClick={onViewHistory}>
+                History
+              </Button>
+            )}
             <Button
               onClick={handleSave}
               state={save.isPending ? 'pending' : save.isSuccess ? 'done' : 'idle'}

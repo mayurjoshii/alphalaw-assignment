@@ -35,3 +35,11 @@ Options carrying a number (meta.days) accumulate; the rest select one, CONDITION
 ## 2026-09-18 — Effective-dating for EmployeeAttribute and enforced Rule supersede
 
 Mirrored `Rule`'s valid_from/valid_to pattern onto `EmployeeAttribute` (add fields, partial unique on open rows, check constraint on period). Rule/EmployeeAttribute edits now close old row (valid_to=now), create new row instead of mutating in place. Enables full history view per employee & category. No materialized assignment table — both input tables are effective-dated; "what was true at T" is reconstructible by filtering both on `valid_from <= T < valid_to-or-null` and re-resolving.
+
+## 2026-09-18 — Timeline endpoints surface candidate rules, not resolved outcomes
+
+`/policy-options/:id/timeline/` and `/employees/:id/timeline/` are new Django read endpoints for the dashboard's history pages. The employee one lists attribute changes plus rules referencing each changed key, but does NOT resolve which rule actually won at each past timestamp — that needs the point-in-time condition-matching engine, which per the prior "resolves client-side" decision isn't ported to Django. Full historical resolution is future work.
+
+## 2026-09-18 — Fixed api.list() to follow DRF pagination
+
+`api.list()` only read page 1 (PAGE_SIZE=25), silently dropping rows past it — surfaced by policy options (31 rows) rendering raw UUIDs instead of labels in the new history view. Now follows `next` until exhausted.

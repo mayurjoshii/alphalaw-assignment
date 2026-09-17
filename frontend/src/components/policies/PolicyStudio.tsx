@@ -9,6 +9,7 @@ import { motion } from "motion/react";
 import { Accordion } from "@/components/ui/Accordion";
 import { Badge, Button } from "@/components/ui/primitives";
 import { CategoryComposer } from "./CategoryComposer";
+import { PolicyOptionTimeline } from "./PolicyOptionTimeline";
 import { describeCondition, optionLabel, strategyFor } from "@/lib/resolve";
 import {
   useActiveRules,
@@ -24,6 +25,7 @@ export function PolicyStudio() {
   const attributes = useAttributes();
 
   const [composerOpen, setComposerOpen] = useState(false);
+  const [timelineOptionId, setTimelineOptionId] = useState<string | null>(null);
 
   const allCategories = categories.data ?? [];
   const allOptions = options.data ?? [];
@@ -115,7 +117,7 @@ export function PolicyStudio() {
                         return (
                           <li
                             key={option.id}
-                            className="border-rule-soft bg-paper-raised grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] items-start gap-4 rounded-[3px] border px-3 py-2.5"
+                            className="border-rule-soft bg-paper-raised grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] items-start gap-4 rounded-[3px] border px-3 py-2.5"
                           >
                             <span className="text-[13px]">
                               {optionLabel(option)}
@@ -154,6 +156,14 @@ export function PolicyStudio() {
                                 )
                               )}
                             </span>
+
+                            <button
+                              type="button"
+                              onClick={() => setTimelineOptionId(option.id)}
+                              className="focus-ring text-ink-faint hover:text-oxblood font-mono text-[9px] font-medium tracking-[0.1em] uppercase underline decoration-dotted underline-offset-2"
+                            >
+                              History
+                            </button>
                           </li>
                         );
                       })}
@@ -171,6 +181,13 @@ export function PolicyStudio() {
         attributes={allAttributes}
         takenTypes={allCategories.map((category) => category.type)}
         onClose={() => setComposerOpen(false)}
+      />
+
+      <PolicyOptionTimeline
+        open={timelineOptionId != null}
+        optionId={timelineOptionId}
+        attributes={allAttributes}
+        onClose={() => setTimelineOptionId(null)}
       />
     </div>
   );

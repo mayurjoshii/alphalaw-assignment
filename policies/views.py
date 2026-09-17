@@ -35,6 +35,7 @@ from .serializers import (
     PolicyOptionSerializer,
     RuleConditionSerializer,
     RuleSerializer,
+    RuleTimelineSerializer,
 )
 
 
@@ -69,6 +70,63 @@ class EmployeeInfoViewSet(viewsets.ModelViewSet):
                 )
         return qs
 
+    @action(detail=True, methods=["get"])
+    def timeline(self, request, pk=None):
+        """
+        GET /api/employees/{id}/timeline/
+
+        Every attribute value this employee has ever had (newest first), each
+        annotated with the rules whose conditions reference that attribute
+        key -- so the dashboard can show "what might this have changed" next
+        to each attribute change. Full point-in-time rule *resolution*
+        (matching every condition, tenure bonuses, GLOBAL fallback) is not
+        ported to Django yet -- see functions.ts:resolveScopedRules -- so this
+        endpoint surfaces candidate rules rather than a resolved outcome.
+        """
+        employee = self.get_object()
+        attribute_history = (
+            employee.attributes.select_related("attribute")
+            .order_by("-valid_from")
+        )
+
+        touched_keys = {row.attribute_id for row in attribute_history}
+        conditions_by_key = {}
+        if touched_keys:
+            conditions = RuleCondition.objects.filter(
+                employee_attribute__in=touched_keys
+            ).select_related("rule", "rule__outcome", "rule__outcome__category")
+            for condition in conditions:
+                conditions_by_key.setdefault(condition.employee_attribute, []).append(
+                    condition
+                )
+
+        events = []
+        for row in attribute_history:
+            related_conditions = conditions_by_key.get(row.attribute_id, [])
+            rules_seen = {}
+            for condition in related_conditions:
+                rules_seen.setdefault(condition.rule_id, condition.rule)
+            events.append(
+                {
+                    "id": row.id,
+                    "attribute": AttributeSerializer(row.attribute).data,
+                    "value": row.value,
+                    "valid_from": row.valid_from,
+                    "valid_to": row.valid_to,
+                    "status": "active" if row.valid_to is None else "superseded",
+                    "rules_referencing_attribute": RuleTimelineSerializer(
+                        rules_seen.values(), many=True
+                    ).data,
+                }
+            )
+
+        return Response(
+            {
+                "employee": EmployeeInfoSerializer(employee).data,
+                "attributeTimeline": events,
+            }
+        )
+
 
 class PolicyCategoryViewSet(viewsets.ModelViewSet):
     queryset = PolicyCategory.objects.all()
@@ -86,6 +144,27 @@ class PolicyOptionViewSet(viewsets.ModelViewSet):
         if category_type:
             qs = qs.filter(category__type=category_type.upper())
         return qs
+
+    @action(detail=True, methods=["get"])
+    def timeline(self, request, pk=None):
+        """
+        GET /api/policy-options/{id}/timeline/
+
+        Every rule ever written against this option (active and superseded),
+        newest valid_from first -- the dashboard's per-option history view.
+        """
+        option = self.get_object()
+        rules = (
+            option.rules.select_related("outcome", "outcome__category")
+            .prefetch_related("conditions")
+            .order_by("-valid_from")
+        )
+        return Response(
+            {
+                "policyOption": PolicyOptionSerializer(option).data,
+                "rules": RuleTimelineSerializer(rules, many=True).data,
+            }
+        )
 
 
 class RuleViewSet(viewsets.ModelViewSet):
