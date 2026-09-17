@@ -31,3 +31,7 @@ Dropped the typed `joining_date` column; it's an EmployeeAttribute now like othe
 ## 2026-09-17 — Resolution strategy is read off option meta
 
 Options carrying a number (meta.days) accumulate; the rest select one, CONDITIONAL over GLOBAL. Leave days stack, pay schedules cannot — so the category's data decides, not a hardcoded list.
+
+## 2026-09-18 — Effective-dating for EmployeeAttribute and enforced Rule supersede
+
+Mirrored `Rule`'s valid_from/valid_to pattern onto `EmployeeAttribute` (add fields, partial unique on open rows, check constraint on period). Rule/EmployeeAttribute edits now close old row (valid_to=now), create new row instead of mutating in place. Enables full history view per employee & category. No materialized assignment table — both input tables are effective-dated; "what was true at T" is reconstructible by filtering both on `valid_from <= T < valid_to-or-null` and re-resolving.

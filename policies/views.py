@@ -91,6 +91,9 @@ class RuleViewSet(viewsets.ModelViewSet):
         qs = super().get_queryset()
         if self.request.query_params.get("active") == "true":
             qs = self._active(qs)
+        category = self.request.query_params.get("category")
+        if category:
+            qs = qs.filter(outcome__category_id=category)
         return qs
 
     @staticmethod
@@ -105,6 +108,11 @@ class RuleViewSet(viewsets.ModelViewSet):
         """A custom route, mounted by the router at /api/rules/active/."""
         serializer = self.get_serializer(self._active(self.queryset), many=True)
         return Response(serializer.data)
+
+    def perform_destroy(self, instance):
+        """Close the rule instead of deleting -- preserves it in history."""
+        instance.valid_to = timezone.now()
+        instance.save(update_fields=["valid_to"])
 
 
 class RuleConditionViewSet(viewsets.ModelViewSet):
@@ -161,4 +169,11 @@ class EmployeeAttributeViewSet(viewsets.ModelViewSet):
         employee = self.request.query_params.get("employee")
         if employee:
             qs = qs.filter(employee_id=employee)
+        if self.request.query_params.get("history") != "true":
+            qs = qs.filter(valid_to__isnull=True)
         return qs
+
+    def perform_destroy(self, instance):
+        """Close the attribute row instead of deleting -- preserves it in history."""
+        instance.valid_to = timezone.now()
+        instance.save(update_fields=["valid_to"])

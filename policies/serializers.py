@@ -41,7 +41,7 @@ class EmployeeInfoSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def get_attributes(self, obj):
-        return {row.attribute_id: row.value for row in obj.attributes.all()}
+        return {row.attribute_id: row.value for row in EmployeeAttribute.open_for(obj.id)}
 
 
 class PolicyCategorySerializer(serializers.ModelSerializer):
@@ -128,6 +128,43 @@ class RuleSerializer(serializers.ModelSerializer):
         for condition in conditions:
             RuleCondition.objects.create(rule=rule, **condition)
         return rule
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        """Supersede a rule by closing the old row and creating a new one."""
+        from django.utils import timezone
+        conditions = validated_data.pop("conditions", None)
+
+        # Close the current rule
+        instance.valid_to = timezone.now()
+        instance.save(update_fields=["valid_to"])
+
+        # Create a new rule with the updated fields, keeping outcome if not changed
+        new_rule_data = {
+            "outcome": validated_data.get("outcome", instance.outcome),
+            "scope": validated_data.get("scope", instance.scope),
+            "valid_from": timezone.now(),
+            "valid_to": None,
+        }
+        new_rule = Rule.objects.create(**new_rule_data)
+
+        # If conditions provided, write them to the new rule; else copy from old
+        if conditions is not None:
+            for condition in conditions:
+                RuleCondition.objects.create(rule=new_rule, **condition)
+        else:
+            for old_condition in instance.conditions.all():
+                RuleCondition.objects.create(
+                    rule=new_rule,
+                    employee_attribute=old_condition.employee_attribute,
+                    operator=old_condition.operator,
+                    value=old_condition.value,
+                    combinator=old_condition.combinator,
+                )
+
+        # Update self.instance to the new rule so DRF serializes the new row
+        self.instance = new_rule
+        return new_rule
 
 
 class AttributeValueSerializer(serializers.ModelSerializer):
@@ -217,3 +254,26 @@ class EmployeeAttributeSerializer(serializers.ModelSerializer):
                     {"value": f"Not an allowed value for '{attribute.key}': {allowed}"}
                 )
         return attrs
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        """Supersede an attribute row by closing the old one and creating a new one."""
+        from django.utils import timezone
+
+        # Close the current row
+        instance.valid_to = timezone.now()
+        instance.save(update_fields=["valid_to"])
+
+        # Create a new row with the updated fields, keeping unchanged fields
+        new_data = {
+            "employee": validated_data.get("employee", instance.employee),
+            "attribute": validated_data.get("attribute", instance.attribute),
+            "value": validated_data.get("value", instance.value),
+            "valid_from": timezone.now(),
+            "valid_to": None,
+        }
+        new_attribute = EmployeeAttribute.objects.create(**new_data)
+
+        # Update self.instance to the new row so DRF serializes the new row
+        self.instance = new_attribute
+        return new_attribute

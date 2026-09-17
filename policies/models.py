@@ -9,6 +9,7 @@ import uuid
 
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 
 class PolicyCategoryName(models.TextChoices):
@@ -17,6 +18,7 @@ class PolicyCategoryName(models.TextChoices):
     DEPARTMENT = "DEPARTMENT", "Department"
     TENURE = "TENURE", "Tenure"
     LEAVE = "LEAVE", "Leave"
+    LEAVE_ONETIME = "LEAVE_ONETIME", "Leave (one-time)"
     LOCATION = "LOCATION", "Location"
     COMPLIANCE = "COMPLIANCE", "Compliance"
     SHIFT = "SHIFT", "Shift"
@@ -251,7 +253,8 @@ class EmployeeAttribute(UUIDModel):
     """
     An employee's value for one attribute. Stored facts only -- computed
     attributes (tenure_years) are derived from the `joining_date` attribute
-    value at evaluation time and never written here.
+    value at evaluation time and never written here. History is kept via
+    valid_from/valid_to: supersede by setting valid_to and inserting a new row.
     """
 
     employee = models.ForeignKey(
@@ -262,15 +265,30 @@ class EmployeeAttribute(UUIDModel):
         db_column="attribute_key",
     )
     value = models.CharField(max_length=255)
+    valid_from = models.DateTimeField(default=timezone.now)
+    valid_to = models.DateTimeField(
+        null=True, blank=True, help_text="Null means currently active."
+    )
 
     class Meta:
-        ordering = ["employee_id", "attribute_id"]
+        ordering = ["employee_id", "attribute_id", "-valid_from"]
         constraints = [
             models.UniqueConstraint(
                 fields=["employee", "attribute"],
-                name="employeeattribute_unique_per_employee",
-            )
+                condition=Q(valid_to__isnull=True),
+                name="employeeattribute_unique_open_per_employee",
+            ),
+            models.CheckConstraint(
+                condition=Q(valid_to__isnull=True) | Q(valid_to__gt=models.F("valid_from")),
+                name="employeeattribute_valid_period_ordered",
+            ),
         ]
 
     def __str__(self):
         return f"{self.employee_id} {self.attribute_id}={self.value}"
+
+    @classmethod
+    def open_for(cls, employee_id=None):
+        """Return currently-open (valid_to is null) attribute rows."""
+        qs = cls.objects.filter(valid_to__isnull=True)
+        return qs.filter(employee_id=employee_id) if employee_id else qs
