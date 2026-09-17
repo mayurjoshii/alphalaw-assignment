@@ -80,7 +80,7 @@ class Migration(migrations.Migration):
                 ('employee_attribute', models.CharField(max_length=128)),
                 ('operator', models.CharField(choices=[('equals', 'Equals'), ('not_equals', 'Not equals'), ('greater_than', 'Greater than'), ('less_than', 'Less than'), ('greater_than_or_equal', 'Greater than or equal'), ('less_than_or_equal', 'Less than or equal')], max_length=32)),
                 ('value', models.CharField(max_length=255)),
-                ('combinator', models.CharField(choices=[('AND', 'And'), ('OR', 'Or')], default='AND', max_length=3)),
+                ('combinator', models.CharField(choices=[('AND', 'And'), ('OR', 'Or')], default='AND', max_length=3, null=True, blank=True)),
                 ('rule', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='conditions', to='policies.rule')),
             ],
             options={

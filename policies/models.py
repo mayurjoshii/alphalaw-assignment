@@ -154,7 +154,8 @@ class RuleCondition(UUIDModel):
     operator = models.CharField(max_length=32, choices=ConditionOperator.choices)
     value = models.CharField(max_length=255)
     combinator = models.CharField(
-        max_length=3, choices=Combinator.choices, default=Combinator.AND
+        max_length=3, choices=Combinator.choices, default=Combinator.AND,
+        null=True, blank=True,
     )
 
     class Meta:

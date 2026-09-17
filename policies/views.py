@@ -90,9 +90,12 @@ class PolicyOptionViewSet(viewsets.ModelViewSet):
 
 class RuleViewSet(viewsets.ModelViewSet):
     """
-    GET  /api/rules/           list rules with their conditions, ?active=true
-    POST /api/rules/           create a rule (conditions can be nested inline)
-    GET  /api/rules/active/    only rules in effect right now
+    GET  /api/rules/                 rules with their conditions; superseded
+                                     rules (valid_to in the past) are hidden
+    GET  /api/rules/?history=true    include superseded rules, for the
+                                     history tab
+    POST /api/rules/                 create a rule (conditions nested inline)
+    GET  /api/rules/active/          only rules in effect right now
     """
 
     queryset = Rule.objects.select_related("outcome").prefetch_related("conditions")
@@ -100,6 +103,11 @@ class RuleViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        # Policy Studio shows current state only -- a rule whose valid_to has
+        # passed belongs in the history tab, which opts back in with
+        # ?history=true. Same convention as EmployeeAttributeViewSet.
+        if self.action == "list" and self.request.query_params.get("history") != "true":
+            qs = qs.exclude(valid_to__lte=timezone.now())
         if self.request.query_params.get("active") == "true":
             qs = self._active(qs)
         category = self.request.query_params.get("category")
