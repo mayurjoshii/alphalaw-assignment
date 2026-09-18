@@ -182,12 +182,16 @@ class RuleSerializer(serializers.ModelSerializer):
 
 class RuleTimelineSerializer(RuleSerializer):
     """Read-only `RuleSerializer` plus a derived active/superseded status,
-    for the policy-option and employee timeline views."""
+    for the policy-option and employee timeline views. `outcome` is nested
+    (not just its id) since these views span rules pointing at different
+    PolicyOption rows over time -- the whole point is showing what each one's
+    meta held."""
 
     status = serializers.SerializerMethodField()
     category_type = serializers.CharField(
         source="outcome.category.type", read_only=True
     )
+    outcome = PolicyOptionSerializer(read_only=True)
 
     class Meta(RuleSerializer.Meta):
         fields = RuleSerializer.Meta.fields + ["status", "category_type"]

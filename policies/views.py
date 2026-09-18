@@ -150,12 +150,50 @@ class PolicyOptionViewSet(viewsets.ModelViewSet):
         """
         GET /api/policy-options/{id}/timeline/
 
-        Every rule ever written against this option (active and superseded),
-        newest valid_from first -- the dashboard's per-option history view.
+        A rule is superseded by closing it and pointing a new rule at
+        whichever option now holds -- for a numeric/union value like leave
+        days or app-access items, that's a *different* PolicyOption row per
+        value, not an edit of this one's meta. So "this option's own rules"
+        would only ever show one entry. Instead, find every rule that ever
+        shared this option's scope + exact condition set (or, for GLOBAL,
+        just the scope) within the same category, and return their rules
+        regardless of which option they point at -- that's the actual value
+        history for this rule "slot", newest valid_from first.
         """
         option = self.get_object()
+        own_rules = option.rules.prefetch_related("conditions")
+        reference_rule = (
+            own_rules.filter(valid_to__isnull=True).first()
+            or own_rules.order_by("-valid_from").first()
+        )
+
+        if reference_rule is None:
+            rules = Rule.objects.none()
+        elif reference_rule.scope == "GLOBAL":
+            rules = Rule.objects.filter(
+                outcome__category=option.category, scope="GLOBAL"
+            )
+        else:
+            signature = frozenset(
+                (c.employee_attribute, c.operator, c.value)
+                for c in reference_rule.conditions.all()
+            )
+            candidates = Rule.objects.filter(
+                outcome__category=option.category, scope="CONDITIONAL"
+            ).prefetch_related("conditions")
+            matching_ids = [
+                r.id
+                for r in candidates
+                if frozenset(
+                    (c.employee_attribute, c.operator, c.value)
+                    for c in r.conditions.all()
+                )
+                == signature
+            ]
+            rules = Rule.objects.filter(id__in=matching_ids)
+
         rules = (
-            option.rules.select_related("outcome", "outcome__category")
+            rules.select_related("outcome", "outcome__category")
             .prefetch_related("conditions")
             .order_by("-valid_from")
         )
