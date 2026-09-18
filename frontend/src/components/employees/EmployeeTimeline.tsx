@@ -15,7 +15,7 @@ import { motion } from 'motion/react';
 import { Drawer, DrawerHeader } from '@/components/ui/Drawer';
 import { Badge } from '@/components/ui/primitives';
 import { optionLabel } from '@/lib/resolve';
-import { useEmployeeTimeline, usePolicyOptions } from '@/lib/queries';
+import { useEmployeeTimeline } from '@/lib/queries';
 
 const DATE_FORMAT: Intl.DateTimeFormatOptions = {
   year: 'numeric',
@@ -37,10 +37,7 @@ export function EmployeeTimeline({
   onClose: () => void;
 }) {
   const timeline = useEmployeeTimeline(open ? employeeId : null);
-  const options = usePolicyOptions();
   const data = timeline.data;
-
-  const optionById = new Map((options.data ?? []).map((option) => [option.id, option]));
 
   return (
     <Drawer open={open} onClose={onClose}>
@@ -86,39 +83,33 @@ export function EmployeeTimeline({
                         {event.value}
                       </code>
                     </span>
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-2">
+                      <span className="text-ink-faint font-mono text-[10.5px]">
+                        {formatDate(event.valid_from)}
+                        {event.valid_to ? ` — ${formatDate(event.valid_to)}` : ' — present'}
+                      </span>
                       <Badge tone={event.status === 'active' ? 'verdigris' : 'neutral'}>
                         {event.status}
                       </Badge>
                     </span>
                   </div>
 
-                  <p className="text-ink-faint mt-1 font-mono text-[10.5px]">
-                    {formatDate(event.valid_from)}
-                    {event.valid_to ? ` — ${formatDate(event.valid_to)}` : ' — present'}
-                  </p>
-
                   {event.rules_referencing_attribute.length > 0 && (
                     <div className="mt-2.5 flex flex-col gap-1">
                       <span className="stamp">Rules testing this attribute</span>
                       <ul className="flex flex-col gap-1">
-                        {event.rules_referencing_attribute.map((rule) => {
-                          const option = optionById.get(rule.outcome);
-                          return (
-                            <li
-                              key={rule.id}
-                              className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px]"
-                            >
-                              <Badge tone={rule.status === 'active' ? 'verdigris' : 'neutral'}>
-                                {rule.status}
-                              </Badge>
-                              <Badge>{rule.category_type.replace(/_/g, ' ')}</Badge>
-                              <span className="text-ink-soft">
-                                {option ? optionLabel(option) : rule.outcome}
-                              </span>
-                            </li>
-                          );
-                        })}
+                        {event.rules_referencing_attribute.map((rule) => (
+                          <li
+                            key={rule.id}
+                            className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px]"
+                          >
+                            <Badge tone={rule.status === 'active' ? 'verdigris' : 'neutral'}>
+                              {rule.status}
+                            </Badge>
+                            <Badge>{rule.category_type.replace(/_/g, ' ')}</Badge>
+                            <span className="text-ink-soft">{optionLabel(rule.outcome)}</span>
+                          </li>
+                        ))}
                       </ul>
                     </div>
                   )}

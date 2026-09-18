@@ -90,6 +90,10 @@ export function PolicyOptionTimeline({
                     </span>
                   </div>
 
+                  <p className="text-ink mt-1.5 font-mono text-[12px] font-medium">
+                    {optionLabel(rule.outcome)}
+                  </p>
+
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     {rule.scope === 'GLOBAL' ? (
                       <span className="text-ink-faint font-mono text-[10.5px]">

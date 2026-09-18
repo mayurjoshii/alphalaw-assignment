@@ -13,15 +13,18 @@ import { PolicyOptionTimeline } from "./PolicyOptionTimeline";
 import { describeCondition, optionLabel, strategyFor } from "@/lib/resolve";
 import {
   useActiveRules,
+  useAllRulesWithHistory,
   useAttributes,
   usePolicyCategories,
   usePolicyOptions,
 } from "@/lib/queries";
+import type { Rule } from "@/types/domain";
 
 export function PolicyStudio() {
   const categories = usePolicyCategories();
   const options = usePolicyOptions();
   const activeRules = useActiveRules();
+  const rulesWithHistory = useAllRulesWithHistory();
   const attributes = useAttributes();
 
   const [composerOpen, setComposerOpen] = useState(false);
@@ -30,7 +33,55 @@ export function PolicyStudio() {
   const allCategories = categories.data ?? [];
   const allOptions = options.data ?? [];
   const allActiveRules = activeRules.data ?? [];
+  const allRulesWithHistory = rulesWithHistory.data ?? [];
   const allAttributes = attributes.data ?? [];
+
+  const optionCategory = new Map(allOptions.map((o) => [o.id, o.category]));
+
+  // A superseded rule usually points at a *different* PolicyOption (a new
+  // value = a new row), so "has this option's value ever changed" can't be
+  // answered by counting rules with outcome === optionId. Mirror the
+  // backend's /timeline/ signature match instead: same category + scope +
+  // condition set is the same rule "slot" across time. See policies/views.py.
+  function conditionSignature(rule: Rule) {
+    return new Set(
+      rule.conditions.map((c) => `${c.employee_attribute}|${c.operator}|${c.value}`),
+    );
+  }
+
+  function sameSignature(a: Set<string>, b: Set<string>) {
+    if (a.size !== b.size) return false;
+    for (const item of a) if (!b.has(item)) return false;
+    return true;
+  }
+
+  const optionHasHistory = (optionId: string) => {
+    const category = optionCategory.get(optionId);
+    const ownRules = allRulesWithHistory.filter((r) => r.outcome === optionId);
+    if (category == null || ownRules.length === 0) return false;
+
+    const reference =
+      ownRules.find((r) => r.valid_to == null) ??
+      [...ownRules].sort((a, b) => (a.valid_from < b.valid_from ? 1 : -1))[0];
+
+    if (reference.scope === "GLOBAL") {
+      return (
+        allRulesWithHistory.filter(
+          (r) => r.scope === "GLOBAL" && optionCategory.get(r.outcome) === category,
+        ).length > 1
+      );
+    }
+
+    const signature = conditionSignature(reference);
+    return (
+      allRulesWithHistory.filter(
+        (r) =>
+          r.scope === "CONDITIONAL" &&
+          optionCategory.get(r.outcome) === category &&
+          sameSignature(conditionSignature(r), signature),
+      ).length > 1
+    );
+  };
 
   return (
     <div className="animate-rise flex flex-col gap-5">
@@ -160,7 +211,11 @@ export function PolicyStudio() {
                             <button
                               type="button"
                               onClick={() => setTimelineOptionId(option.id)}
-                              className="focus-ring text-ink-faint hover:text-oxblood font-mono text-[9px] font-medium tracking-[0.1em] uppercase underline decoration-dotted underline-offset-2"
+                              className={`focus-ring hover:text-oxblood font-mono text-[9px] font-medium tracking-[0.1em] uppercase underline decoration-dotted underline-offset-2 ${
+                                optionHasHistory(option.id)
+                                  ? "text-ink"
+                                  : "text-ink-faint"
+                              }`}
                             >
                               History
                             </button>

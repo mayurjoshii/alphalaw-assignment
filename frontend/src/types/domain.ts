@@ -142,7 +142,8 @@ export function testableAttributes(stored: Attribute[]): Attribute[] {
 // ---------------------------------------------------------------- timeline
 
 /** `Rule` plus what `RuleTimelineSerializer` derives server-side. */
-export interface RuleTimelineEntry extends Rule {
+export interface RuleTimelineEntry extends Omit<Rule, 'outcome'> {
+  outcome: PolicyOption;
   status: 'active' | 'superseded';
   category_type: PolicyCategoryName;
 }

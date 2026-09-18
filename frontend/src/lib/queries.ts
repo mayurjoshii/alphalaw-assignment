@@ -68,6 +68,14 @@ export function useActiveRules() {
   });
 }
 
+/** Every rule ever written, active and superseded -- used to flag which options have history. */
+export function useAllRulesWithHistory() {
+  return useQuery({
+    queryKey: [...keys.rules, 'history'],
+    queryFn: () => api.list<Rule>('/rules/?history=true'),
+  });
+}
+
 /** Every rule ever written against one option, newest first -- its history page. */
 export function usePolicyOptionTimeline(optionId: string | null) {
   return useQuery({
