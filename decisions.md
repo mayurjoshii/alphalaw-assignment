@@ -43,3 +43,7 @@ Mirrored `Rule`'s valid_from/valid_to pattern onto `EmployeeAttribute` (add fiel
 ## 2026-09-18 — Fixed api.list() to follow DRF pagination
 
 `api.list()` only read page 1 (PAGE_SIZE=25), silently dropping rows past it — surfaced by policy options (31 rows) rendering raw UUIDs instead of labels in the new history view. Now follows `next` until exhausted.
+
+## 2026-09-18 — Backfilled fake rule history for the timeline views
+
+`manage.py backfill_rule_history` closes out synthetic predecessor rules (2-3 changes over the last ~5 years) behind live LEAVE/APPLICATION_ACCESS rules, so the new timeline UI has data. Dev-only, idempotent, not run as a migration.
